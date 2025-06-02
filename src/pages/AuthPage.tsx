@@ -1,13 +1,15 @@
 
 import { useState } from "react";
+import { Navigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 
 const AuthPage = () => {
   const [isSignUp, setIsSignUp] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -16,25 +18,36 @@ const AuthPage = () => {
     lastName: "",
     company: ""
   });
-  const { toast } = useToast();
+  
+  const { user, signUp, signIn } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Redirect if already authenticated
+  if (user) {
+    return <Navigate to="/" replace />;
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (isSignUp && formData.password !== formData.confirmPassword) {
-      toast({
-        title: "Error",
-        description: "Passwords do not match",
-        variant: "destructive"
-      });
-      return;
-    }
+    setIsLoading(true);
 
-    // Placeholder for authentication logic
-    toast({
-      title: isSignUp ? "Account Created" : "Signed In",
-      description: `Welcome${isSignUp ? " to Crop Catch" : " back"}!`,
-    });
+    try {
+      if (isSignUp) {
+        if (formData.password !== formData.confirmPassword) {
+          throw new Error("Passwords do not match");
+        }
+        await signUp(formData.email, formData.password, {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          company: formData.company,
+        });
+      } else {
+        await signIn(formData.email, formData.password);
+      }
+    } catch (error) {
+      console.error('Auth error:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -128,6 +141,7 @@ const AuthPage = () => {
                 onChange={handleInputChange}
                 required
                 placeholder="••••••••"
+                minLength={6}
               />
             </div>
 
@@ -149,8 +163,9 @@ const AuthPage = () => {
             <Button 
               type="submit" 
               className="w-full bg-green-600 hover:bg-green-700"
+              disabled={isLoading}
             >
-              {isSignUp ? "Create Account" : "Sign In"}
+              {isLoading ? "Loading..." : (isSignUp ? "Create Account" : "Sign In")}
             </Button>
           </form>
 

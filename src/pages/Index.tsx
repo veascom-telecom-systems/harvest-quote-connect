@@ -2,38 +2,27 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShoppingCart, ArrowRight } from "lucide-react";
+import { ShoppingCart, ArrowRight, User, LogOut } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useCart } from "@/hooks/useCart";
+import { useProducts } from "@/hooks/useProducts";
 
 const Index = () => {
-  const featuredProducts = [
-    {
-      id: 1,
-      name: "Organic Avocados",
-      category: "Fresh",
-      origin: "Spain",
-      price: "€2.50/kg",
-      image: "https://images.unsplash.com/photo-1618160702438-9b02ab6515c9?w=400&h=300&fit=crop",
-      availability: "In Stock"
-    },
-    {
-      id: 2,
-      name: "Fresh Strawberries",
-      category: "Fresh",
-      origin: "Netherlands",
-      price: "€4.20/kg",
-      image: "https://images.unsplash.com/photo-1465146344425-f00d5f5c8f07?w=400&h=300&fit=crop",
-      availability: "In Stock"
-    },
-    {
-      id: 3,
-      name: "Frozen Berries Mix",
-      category: "Frozen",
-      origin: "Germany",
-      price: "€3.80/kg",
-      image: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=400&h=300&fit=crop",
-      availability: "Limited"
-    }
-  ];
+  const { user, signOut } = useAuth();
+  const { getTotalItems, addItem } = useCart();
+  const { data: products = [] } = useProducts();
+  
+  const featuredProducts = products.slice(0, 3);
+
+  const handleAddToCart = (product: any) => {
+    addItem({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      unit: product.unit,
+      image_url: product.image_url,
+    });
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
@@ -54,26 +43,44 @@ const Index = () => {
               <Link to="/products" className="text-gray-700 hover:text-green-600 transition-colors">
                 Products
               </Link>
-              <Link to="/about" className="text-gray-700 hover:text-green-600 transition-colors">
-                About
+              <Link to="/rfq" className="text-gray-700 hover:text-green-600 transition-colors">
+                Request Quote
               </Link>
-              <Link to="/contact" className="text-gray-700 hover:text-green-600 transition-colors">
-                Contact
-              </Link>
+              {user && (
+                <Link to="/profile" className="text-gray-700 hover:text-green-600 transition-colors">
+                  Profile
+                </Link>
+              )}
             </nav>
 
             <div className="flex items-center space-x-4">
               <Link to="/cart" className="relative p-2 hover:bg-green-50 rounded-lg transition-colors">
                 <ShoppingCart className="w-6 h-6 text-gray-700" />
                 <span className="absolute -top-1 -right-1 bg-green-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                  0
+                  {getTotalItems()}
                 </span>
               </Link>
-              <Link to="/auth">
-                <Button className="bg-green-600 hover:bg-green-700 text-white">
-                  Sign In
-                </Button>
-              </Link>
+              
+              {user ? (
+                <div className="flex items-center space-x-2">
+                  <Link to="/profile">
+                    <Button variant="outline" size="sm">
+                      <User className="w-4 h-4 mr-1" />
+                      Profile
+                    </Button>
+                  </Link>
+                  <Button variant="outline" size="sm" onClick={signOut}>
+                    <LogOut className="w-4 h-4 mr-1" />
+                    Sign Out
+                  </Button>
+                </div>
+              ) : (
+                <Link to="/auth">
+                  <Button className="bg-green-600 hover:bg-green-700 text-white">
+                    Sign In
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -122,7 +129,7 @@ const Index = () => {
             <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow bg-white/80 backdrop-blur-sm border-green-100">
               <div className="aspect-video overflow-hidden">
                 <img 
-                  src={product.image} 
+                  src={product.image_url || 'https://images.unsplash.com/photo-1618160702438-9b02ab6515c9?w=400&h=300&fit=crop'} 
                   alt={product.name}
                   className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                 />
@@ -131,21 +138,26 @@ const Index = () => {
                 <div className="flex justify-between items-start">
                   <CardTitle className="text-lg">{product.name}</CardTitle>
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    product.availability === 'In Stock' 
+                    product.availability && product.stock > 0
                       ? 'bg-green-100 text-green-800' 
-                      : 'bg-yellow-100 text-yellow-800'
+                      : 'bg-red-100 text-red-800'
                   }`}>
-                    {product.availability}
+                    {product.availability && product.stock > 0 ? 'In Stock' : 'Out of Stock'}
                   </span>
                 </div>
                 <CardDescription>
-                  {product.category} • Origin: {product.origin}
+                  {product.category} • Origin: {product.country_of_origin}
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-0">
                 <div className="flex justify-between items-center">
-                  <span className="text-2xl font-bold text-green-600">{product.price}</span>
-                  <Button size="sm" className="bg-green-600 hover:bg-green-700">
+                  <span className="text-2xl font-bold text-green-600">€{product.price}/{product.unit}</span>
+                  <Button 
+                    size="sm" 
+                    className="bg-green-600 hover:bg-green-700"
+                    onClick={() => handleAddToCart(product)}
+                    disabled={!product.availability || product.stock <= 0}
+                  >
                     Add to Cart
                   </Button>
                 </div>
