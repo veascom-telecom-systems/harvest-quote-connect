@@ -12,11 +12,51 @@ import { ProductsTab } from "@/components/admin/ProductsTab";
 import { RFQsTab } from "@/components/admin/RFQsTab";
 import { OrdersTab } from "@/components/admin/OrdersTab";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { 
+  Users, Settings, Shield, Activity, Bell, Database,
+  HardDrive, FileText, AlertTriangle
+} from "lucide-react";
 
 const AdminDashboardPage = () => {
-  const { user, session } = useAuth();
+  const { user } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [showProductForm, setShowProductForm] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [selectedRFQ, setSelectedRFQ] = useState<any>(null);
+  const [showRFQDialog, setShowRFQDialog] = useState(false);
+  const [systemHealth, setSystemHealth] = useState({
+    cpu: 45,
+    memory: 62,
+    disk: 78,
+    network: 92
+  });
+  const [recentActivity] = useState([
+    { timestamp: new Date().toISOString(), action: "User login", user: "admin@example.com", ip: "192.168.1.1" },
+    { timestamp: new Date().toISOString(), action: "Product updated", user: "admin@example.com", ip: "192.168.1.1" },
+    { timestamp: new Date().toISOString(), action: "Order processed", user: "admin@example.com", ip: "192.168.1.1" }
+  ]);
+  const [securityAlerts] = useState([
+    { level: "high", message: "Multiple failed login attempts detected", timestamp: new Date().toISOString() },
+    { level: "medium", message: "Unusual access pattern detected", timestamp: new Date().toISOString() }
+  ]);
+
+  const { toast } = useToast();
+  const { data: stats, isLoading: statsLoading } = useAdminStats();
+  const { data: products = [], isLoading: productsLoading } = useProducts();
+  const { data: rfqs = [], isLoading: rfqsLoading } = useAdminRFQs();
+  const { data: orders = [], isLoading: ordersLoading } = useAdminOrders();
+  
+  const createProduct = useCreateProduct();
+  const updateProduct = useUpdateProduct();
+  const deleteProduct = useDeleteProduct();
+  const updateRFQStatus = useUpdateRFQStatus();
+  const updateOrder = useUpdateOrder();
 
   useEffect(() => {
     const checkAdminStatus = async () => {
@@ -57,24 +97,6 @@ const AdminDashboardPage = () => {
       </div>
     );
   }
-
-  const [activeTab, setActiveTab] = useState("overview");
-  const [showProductForm, setShowProductForm] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<any>(null);
-  const [selectedRFQ, setSelectedRFQ] = useState<any>(null);
-  const [showRFQDialog, setShowRFQDialog] = useState(false);
-  
-  const { toast } = useToast();
-  const { data: stats, isLoading: statsLoading } = useAdminStats();
-  const { data: products = [], isLoading: productsLoading } = useProducts();
-  const { data: rfqs = [], isLoading: rfqsLoading } = useAdminRFQs();
-  const { data: orders = [], isLoading: ordersLoading } = useAdminOrders();
-  
-  const createProduct = useCreateProduct();
-  const updateProduct = useUpdateProduct();
-  const deleteProduct = useDeleteProduct();
-  const updateRFQStatus = useUpdateRFQStatus();
-  const updateOrder = useUpdateOrder();
 
   const handleProductSubmit = async (productData: any) => {
     try {
@@ -118,9 +140,248 @@ const AdminDashboardPage = () => {
     }
   };
 
-  if (showProductForm) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 p-8">
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
+      <header className="bg-white/80 backdrop-blur-md shadow-sm border-b border-green-100">
+        <div className="container mx-auto px-4 py-6">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+            Admin Dashboard
+          </h1>
+        </div>
+      </header>
+
+      <div className="container mx-auto px-4 py-8">
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList className="grid grid-cols-4 lg:grid-cols-8 gap-4">
+            <TabsTrigger value="overview" onClick={() => setActiveTab("overview")}>
+              <Activity className="w-4 h-4 mr-2" />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="users">
+              <Users className="w-4 h-4 mr-2" />
+              Users
+            </TabsTrigger>
+            <TabsTrigger value="products" onClick={() => setActiveTab("products")}>
+              <Database className="w-4 h-4 mr-2" />
+              Products
+            </TabsTrigger>
+            <TabsTrigger value="orders" onClick={() => setActiveTab("orders")}>
+              <FileText className="w-4 h-4 mr-2" />
+              Orders
+            </TabsTrigger>
+            <TabsTrigger value="rfqs" onClick={() => setActiveTab("rfqs")}>
+              <FileText className="w-4 h-4 mr-2" />
+              RFQs
+            </TabsTrigger>
+            <TabsTrigger value="security">
+              <Shield className="w-4 h-4 mr-2" />
+              Security
+            </TabsTrigger>
+            <TabsTrigger value="system">
+              <HardDrive className="w-4 h-4 mr-2" />
+              System
+            </TabsTrigger>
+            <TabsTrigger value="settings">
+              <Settings className="w-4 h-4 mr-2" />
+              Settings
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview">
+            <OverviewTab
+              stats={stats}
+              statsLoading={statsLoading}
+              rfqs={rfqs}
+              rfqsLoading={rfqsLoading}
+              orders={orders}
+              ordersLoading={ordersLoading}
+            />
+          </TabsContent>
+
+          <TabsContent value="users">
+            <Card className="bg-white/80 backdrop-blur-sm border-green-100">
+              <CardHeader>
+                <CardTitle>User Management</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {/* User management content */}
+                  <p>User management interface coming soon...</p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="products">
+            <ProductsTab
+              products={products}
+              productsLoading={productsLoading}
+              onAddProduct={() => setShowProductForm(true)}
+              onEditProduct={(product) => {
+                setEditingProduct(product);
+                setShowProductForm(true);
+              }}
+              onDeleteProduct={handleDeleteProduct}
+              deleteProductPending={deleteProduct.isPending}
+            />
+          </TabsContent>
+
+          <TabsContent value="orders">
+            <OrdersTab
+              orders={orders}
+              ordersLoading={ordersLoading}
+              onUpdateOrderStatus={handleOrderStatusUpdate}
+            />
+          </TabsContent>
+
+          <TabsContent value="rfqs">
+            <RFQsTab
+              rfqs={rfqs}
+              rfqsLoading={rfqsLoading}
+              onManageRFQ={(rfq) => {
+                setSelectedRFQ(rfq);
+                setShowRFQDialog(true);
+              }}
+            />
+          </TabsContent>
+
+          <TabsContent value="security">
+            <div className="grid gap-6">
+              <Card className="bg-white/80 backdrop-blur-sm border-green-100">
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <AlertTriangle className="w-5 h-5 mr-2 text-red-500" />
+                    Security Alerts
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {securityAlerts.map((alert, index) => (
+                      <div
+                        key={index}
+                        className={`p-4 rounded-lg ${
+                          alert.level === 'high' ? 'bg-red-50 text-red-700' : 'bg-yellow-50 text-yellow-700'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold">{alert.message}</span>
+                          <span className="text-sm">{new Date(alert.timestamp).toLocaleString()}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-white/80 backdrop-blur-sm border-green-100">
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Activity className="w-5 h-5 mr-2" />
+                    Recent Activity
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {recentActivity.map((activity, index) => (
+                      <div key={index} className="flex items-center justify-between border-b pb-2">
+                        <div>
+                          <p className="font-medium">{activity.action}</p>
+                          <p className="text-sm text-gray-500">{activity.user}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm text-gray-500">{activity.ip}</p>
+                          <p className="text-sm text-gray-500">
+                            {new Date(activity.timestamp).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="system">
+            <div className="grid gap-6">
+              <Card className="bg-white/80 backdrop-blur-sm border-green-100">
+                <CardHeader>
+                  <CardTitle>System Health</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {Object.entries(systemHealth).map(([key, value]) => (
+                      <div key={key} className="space-y-2">
+                        <div className="flex justify-between">
+                          <span className="capitalize">{key}</span>
+                          <span>{value}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className={`h-2 rounded-full ${
+                              value > 90
+                                ? 'bg-red-500'
+                                : value > 70
+                                ? 'bg-yellow-500'
+                                : 'bg-green-500'
+                            }`}
+                            style={{ width: `${value}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-white/80 backdrop-blur-sm border-green-100">
+                <CardHeader>
+                  <CardTitle>Performance Metrics</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart
+                        data={[
+                          { time: '00:00', value: 30 },
+                          { time: '04:00', value: 25 },
+                          { time: '08:00', value: 40 },
+                          { time: '12:00', value: 65 },
+                          { time: '16:00', value: 55 },
+                          { time: '20:00', value: 45 },
+                          { time: '24:00', value: 35 }
+                        ]}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="time" />
+                        <YAxis />
+                        <Tooltip />
+                        <Line type="monotone" dataKey="value" stroke="#22c55e" />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="settings">
+            <Card className="bg-white/80 backdrop-blur-sm border-green-100">
+              <CardHeader>
+                <CardTitle>System Settings</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {/* Settings content */}
+                  <p>System settings interface coming soon...</p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      {showProductForm && (
         <ProductForm
           product={editingProduct}
           onSubmit={handleProductSubmit}
@@ -130,91 +391,7 @@ const AdminDashboardPage = () => {
           }}
           isLoading={createProduct.isPending || updateProduct.isPending}
         />
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
-      <header className="bg-white/80 backdrop-blur-md shadow-sm border-b border-green-100">
-        <div className="container mx-auto px-4 py-6">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-            Admin Dashboard
-          </h1>
-          <p className="text-gray-600 mt-2">Manage products, orders, and RFQs</p>
-        </div>
-      </header>
-
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <div className="border-b border-gray-200 bg-white/80 backdrop-blur-sm rounded-lg">
-            <nav className="flex space-x-8 px-6">
-              {[
-                { id: "overview", label: "Overview" },
-                { id: "products", label: "Products" },
-                { id: "rfqs", label: "RFQs" },
-                { id: "orders", label: "Orders" }
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`py-4 border-b-2 font-medium text-sm ${
-                    activeTab === tab.id
-                      ? "border-green-500 text-green-600"
-                      : "border-transparent text-gray-500 hover:text-gray-700"
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </nav>
-          </div>
-        </div>
-
-        {activeTab === "overview" && (
-          <OverviewTab
-            stats={stats}
-            statsLoading={statsLoading}
-            rfqs={rfqs}
-            rfqsLoading={rfqsLoading}
-            orders={orders}
-            ordersLoading={ordersLoading}
-          />
-        )}
-
-        {activeTab === "products" && (
-          <ProductsTab
-            products={products}
-            productsLoading={productsLoading}
-            onAddProduct={() => setShowProductForm(true)}
-            onEditProduct={(product) => {
-              setEditingProduct(product);
-              setShowProductForm(true);
-            }}
-            onDeleteProduct={handleDeleteProduct}
-            deleteProductPending={deleteProduct.isPending}
-          />
-        )}
-
-        {activeTab === "rfqs" && (
-          <RFQsTab
-            rfqs={rfqs}
-            rfqsLoading={rfqsLoading}
-            onManageRFQ={(rfq) => {
-              setSelectedRFQ(rfq);
-              setShowRFQDialog(true);
-            }}
-          />
-        )}
-
-        {activeTab === "orders" && (
-          <OrdersTab
-            orders={orders}
-            ordersLoading={ordersLoading}
-            onUpdateOrderStatus={handleOrderStatusUpdate}
-          />
-        )}
-      </div>
+      )}
 
       <RFQDialog
         rfq={selectedRFQ}
