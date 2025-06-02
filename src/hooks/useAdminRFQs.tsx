@@ -11,7 +11,7 @@ export const useAdminRFQs = () => {
         .from('rfqs')
         .select(`
           *,
-          profiles (full_name),
+          profiles!rfqs_user_id_fkey (full_name),
           rfq_items (*)
         `)
         .order('created_at', { ascending: false });
