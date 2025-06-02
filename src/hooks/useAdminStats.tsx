@@ -1,11 +1,24 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 export const useAdminStats = () => {
+  const { user } = useAuth();
+
   return useQuery({
     queryKey: ['admin-stats'],
     queryFn: async () => {
+      // Verify admin role first
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user?.id)
+        .single();
+
+      if (profile?.role !== 'admin') {
+        throw new Error('Unauthorized access');
+      }
+
       // Get total orders
       const { count: totalOrders } = await supabase
         .from('orders')
@@ -38,5 +51,6 @@ export const useAdminStats = () => {
         activeProducts: activeProducts || 0
       };
     },
+    enabled: !!user,
   });
 };

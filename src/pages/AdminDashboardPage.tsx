@@ -1,5 +1,6 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Navigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct } from "@/hooks/useProducts";
 import { useAdminRFQs, useUpdateRFQStatus } from "@/hooks/useAdminRFQs";
 import { useAdminOrders, useUpdateOrder } from "@/hooks/useOrders";
@@ -13,6 +14,50 @@ import { OrdersTab } from "@/components/admin/OrdersTab";
 import { useToast } from "@/hooks/use-toast";
 
 const AdminDashboardPage = () => {
+  const { user, session } = useAuth();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user?.id)
+          .single();
+        
+        setIsAdmin(profile?.role === 'admin');
+      } catch (error) {
+        console.error('Error checking admin status:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (user) {
+      checkAdminStatus();
+    } else {
+      setIsLoading(false);
+    }
+  }, [user]);
+
+  // Redirect if not authenticated or not admin
+  if (!isLoading && (!user || !isAdmin)) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-600"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   const [activeTab, setActiveTab] = useState("overview");
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
