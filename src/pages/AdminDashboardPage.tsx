@@ -84,7 +84,7 @@ const AdminDashboardPage = () => {
 
   // Redirect if not authenticated or not admin
   if (!isLoading && (!user || !isAdmin)) {
-    return <Navigate to="/auth" replace />;
+    return <Navigate to="/auth\" replace />;
   }
 
   if (isLoading) {
