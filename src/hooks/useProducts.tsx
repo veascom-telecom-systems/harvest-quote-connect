@@ -3,20 +3,30 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-export const useProducts = () => {
+export const useProducts = (includeInactive = false) => {
   return useQuery({
-    queryKey: ['products'],
+    queryKey: ['products', includeInactive],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('products')
         .select('*')
-        .eq('availability', true)
         .order('created_at', { ascending: false });
+
+      // For regular users, only show available products
+      if (!includeInactive) {
+        query = query.eq('availability', true);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       return data;
     },
   });
+};
+
+export const useAdminProducts = () => {
+  return useProducts(true); // Include inactive products for admin
 };
 
 export const useProduct = (id: string) => {

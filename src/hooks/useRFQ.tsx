@@ -2,24 +2,21 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from './useAuth';
+import { useAuth } from '@/hooks/useAuth';
 
 export const useRFQs = () => {
   const { user } = useAuth();
-  
+
   return useQuery({
     queryKey: ['rfqs', user?.id],
     queryFn: async () => {
-      if (!user) return [];
-      
+      if (!user) throw new Error('Not authenticated');
+
       const { data, error } = await supabase
         .from('rfqs')
         .select(`
           *,
-          rfq_items (
-            *,
-            products (*)
-          )
+          rfq_items (*)
         `)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
@@ -32,21 +29,21 @@ export const useRFQs = () => {
 };
 
 export const useCreateRFQ = () => {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { user } = useAuth();
 
   return useMutation({
-    mutationFn: async (rfqData: { notes?: string; items: any[] }) => {
-      if (!user) throw new Error('User not authenticated');
+    mutationFn: async ({ rfqData, items }: { rfqData: any; items: any[] }) => {
+      if (!user) throw new Error('Not authenticated');
 
-      // Create RFQ
+      // Create the RFQ
       const { data: rfq, error: rfqError } = await supabase
         .from('rfqs')
         .insert({
+          ...rfqData,
           user_id: user.id,
-          notes: rfqData.notes,
-          status: 'pending',
+          status: 'pending'
         })
         .select()
         .single();
@@ -54,13 +51,13 @@ export const useCreateRFQ = () => {
       if (rfqError) throw rfqError;
 
       // Create RFQ items
-      const rfqItems = rfqData.items.map(item => ({
+      const rfqItems = items.map(item => ({
         rfq_id: rfq.id,
         product_id: item.product_id,
         product_name: item.product_name,
         quantity: item.quantity,
-        product_unit: item.product_unit,
         unit_price_at_request: item.unit_price_at_request,
+        product_unit: item.product_unit
       }));
 
       const { error: itemsError } = await supabase
@@ -75,37 +72,16 @@ export const useCreateRFQ = () => {
       queryClient.invalidateQueries({ queryKey: ['rfqs'] });
       toast({
         title: "Success",
-        description: "RFQ submitted successfully",
+        description: "Request for quotation submitted successfully",
       });
     },
     onError: (error: any) => {
+      console.error('RFQ creation error:', error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to submit RFQ",
         variant: "destructive"
       });
-    },
-  });
-};
-
-export const useAdminRFQs = () => {
-  return useQuery({
-    queryKey: ['admin-rfqs'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('rfqs')
-        .select(`
-          *,
-          profiles (full_name),
-          rfq_items (
-            *,
-            products (*)
-          )
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      return data;
     },
   });
 };
@@ -128,10 +104,48 @@ export const useUpdateRFQ = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rfqs'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-rfqs'] });
       toast({
         title: "Success",
         description: "RFQ updated successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+    },
+  });
+};
+
+export const useDeleteRFQ = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      // Delete RFQ items first (due to foreign key constraint)
+      const { error: itemsError } = await supabase
+        .from('rfq_items')
+        .delete()
+        .eq('rfq_id', id);
+
+      if (itemsError) throw itemsError;
+
+      // Then delete the RFQ
+      const { error: rfqError } = await supabase
+        .from('rfqs')
+        .delete()
+        .eq('id', id);
+
+      if (rfqError) throw rfqError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rfqs'] });
+      toast({
+        title: "Success",
+        description: "RFQ deleted successfully",
       });
     },
     onError: (error: any) => {

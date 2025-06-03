@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { useProducts, useCreateProduct, useUpdateProduct, useDeleteProduct } from "@/hooks/useProducts";
+import { useAdminProducts, useCreateProduct, useUpdateProduct, useDeleteProduct } from "@/hooks/useProducts";
 import { useAdminRFQs, useUpdateRFQStatus } from "@/hooks/useAdminRFQs";
 import { useAdminOrders, useUpdateOrder } from "@/hooks/useOrders";
 import { useAdminStats } from "@/hooks/useAdminStats";
@@ -22,33 +22,19 @@ import {
 } from "lucide-react";
 
 const AdminDashboardPage = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [selectedRFQ, setSelectedRFQ] = useState<any>(null);
   const [showRFQDialog, setShowRFQDialog] = useState(false);
-  const [systemHealth, setSystemHealth] = useState({
-    cpu: 45,
-    memory: 62,
-    disk: 78,
-    network: 92
-  });
-  const [recentActivity] = useState([
-    { timestamp: new Date().toISOString(), action: "User login", user: "admin@example.com", ip: "192.168.1.1" },
-    { timestamp: new Date().toISOString(), action: "Product updated", user: "admin@example.com", ip: "192.168.1.1" },
-    { timestamp: new Date().toISOString(), action: "Order processed", user: "admin@example.com", ip: "192.168.1.1" }
-  ]);
-  const [securityAlerts] = useState([
-    { level: "high", message: "Multiple failed login attempts detected", timestamp: new Date().toISOString() },
-    { level: "medium", message: "Unusual access pattern detected", timestamp: new Date().toISOString() }
-  ]);
 
   const { toast } = useToast();
   const { data: stats, isLoading: statsLoading } = useAdminStats();
-  const { data: products = [], isLoading: productsLoading } = useProducts();
+  const { data: products = [], isLoading: productsLoading } = useAdminProducts(); // Use admin products hook
   const { data: rfqs = [], isLoading: rfqsLoading } = useAdminRFQs();
   const { data: orders = [], isLoading: ordersLoading } = useAdminOrders();
   
@@ -60,55 +46,106 @@ const AdminDashboardPage = () => {
 
   useEffect(() => {
     const checkAdminStatus = async () => {
+      console.log('Checking admin status for user:', user?.id);
+      
+      if (!user) {
+        setIsAdmin(false);
+        setIsLoading(false);
+        setCheckingAuth(false);
+        return;
+      }
+
       try {
-        const { data: profile } = await supabase
+        const { data: profile, error } = await supabase
           .from('profiles')
           .select('role')
-          .eq('id', user?.id)
+          .eq('id', user.id)
           .single();
         
-        setIsAdmin(profile?.role === 'admin');
+        console.log('Profile data:', profile);
+        console.log('Profile error:', error);
+        
+        if (error) {
+          console.error('Error checking admin status:', error);
+          toast({
+            title: "Error",
+            description: "Failed to check admin status",
+            variant: "destructive"
+          });
+          setIsAdmin(false);
+        } else {
+          const userIsAdmin = profile?.role === 'admin';
+          console.log('User is admin:', userIsAdmin);
+          setIsAdmin(userIsAdmin);
+          
+          if (!userIsAdmin) {
+            toast({
+              title: "Access Denied",
+              description: "You don't have admin privileges",
+              variant: "destructive"
+            });
+          }
+        }
       } catch (error) {
         console.error('Error checking admin status:', error);
+        setIsAdmin(false);
       } finally {
         setIsLoading(false);
+        setCheckingAuth(false);
       }
     };
 
-    if (user) {
+    if (!authLoading) {
       checkAdminStatus();
-    } else {
-      setIsLoading(false);
     }
-  }, [user]);
+  }, [user, authLoading, toast]);
 
-  // Redirect if not authenticated or not admin
-  if (!isLoading && (!user || !isAdmin)) {
-    return <Navigate to="/auth\" replace />;
-  }
-
-  if (isLoading) {
+  // Show loading while checking authentication
+  if (authLoading || checkingAuth) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-600"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-gray-600">Checking authentication...</p>
         </div>
       </div>
     );
+  }
+
+  // Redirect if not authenticated
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  // Redirect if not admin
+  if (!isLoading && !isAdmin) {
+    return <Navigate to="/" replace />;
   }
 
   const handleProductSubmit = async (productData: any) => {
     try {
       if (editingProduct) {
         await updateProduct.mutateAsync({ id: editingProduct.id, updates: productData });
+        toast({
+          title: "Success",
+          description: "Product updated successfully",
+        });
       } else {
         await createProduct.mutateAsync(productData);
+        toast({
+          title: "Success",
+          description: "Product created successfully",
+        });
       }
       setShowProductForm(false);
       setEditingProduct(null);
     } catch (error) {
       console.error('Error saving product:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save product",
+        variant: "destructive"
+      });
     }
   };
 
@@ -116,8 +153,17 @@ const AdminDashboardPage = () => {
     if (window.confirm('Are you sure you want to delete this product?')) {
       try {
         await deleteProduct.mutateAsync(id);
+        toast({
+          title: "Success",
+          description: "Product deleted successfully",
+        });
       } catch (error) {
         console.error('Error deleting product:', error);
+        toast({
+          title: "Error",
+          description: "Failed to delete product",
+          variant: "destructive"
+        });
       }
     }
   };
@@ -127,16 +173,34 @@ const AdminDashboardPage = () => {
       await updateRFQStatus.mutateAsync({ id, status, quotedPrice, adminNotes });
       setShowRFQDialog(false);
       setSelectedRFQ(null);
+      toast({
+        title: "Success",
+        description: "RFQ updated successfully",
+      });
     } catch (error) {
       console.error('Error updating RFQ:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update RFQ",
+        variant: "destructive"
+      });
     }
   };
 
   const handleOrderStatusUpdate = async (id: string, newStatus: string) => {
     try {
       await updateOrder.mutateAsync({ id, updates: { order_status: newStatus } });
+      toast({
+        title: "Success",
+        description: "Order status updated successfully",
+      });
     } catch (error) {
       console.error('Error updating order:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update order status",
+        variant: "destructive"
+      });
     }
   };
 
@@ -144,9 +208,14 @@ const AdminDashboardPage = () => {
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
       <header className="bg-white/80 backdrop-blur-md shadow-sm border-b border-green-100">
         <div className="container mx-auto px-4 py-6">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-            Admin Dashboard
-          </h1>
+          <div className="flex justify-between items-center">
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+              Admin Dashboard
+            </h1>
+            <div className="text-sm text-gray-600">
+              Welcome, {user?.email} | Role: Admin
+            </div>
+          </div>
         </div>
       </header>
 
@@ -256,7 +325,10 @@ const AdminDashboardPage = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {securityAlerts.map((alert, index) => (
+                    {[
+                      { level: "high", message: "Multiple failed login attempts detected", timestamp: new Date().toISOString() },
+                      { level: "medium", message: "Unusual access pattern detected", timestamp: new Date().toISOString() }
+                    ].map((alert, index) => (
                       <div
                         key={index}
                         className={`p-4 rounded-lg ${
@@ -282,7 +354,11 @@ const AdminDashboardPage = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {recentActivity.map((activity, index) => (
+                    {[
+                      { timestamp: new Date().toISOString(), action: "User login", user: "admin@example.com", ip: "192.168.1.1" },
+                      { timestamp: new Date().toISOString(), action: "Product updated", user: "admin@example.com", ip: "192.168.1.1" },
+                      { timestamp: new Date().toISOString(), action: "Order processed", user: "admin@example.com", ip: "192.168.1.1" }
+                    ].map((activity, index) => (
                       <div key={index} className="flex items-center justify-between border-b pb-2">
                         <div>
                           <p className="font-medium">{activity.action}</p>
@@ -310,7 +386,12 @@ const AdminDashboardPage = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {Object.entries(systemHealth).map(([key, value]) => (
+                    {Object.entries({
+                      cpu: 45,
+                      memory: 62,
+                      disk: 78,
+                      network: 92
+                    }).map(([key, value]) => (
                       <div key={key} className="space-y-2">
                         <div className="flex justify-between">
                           <span className="capitalize">{key}</span>
