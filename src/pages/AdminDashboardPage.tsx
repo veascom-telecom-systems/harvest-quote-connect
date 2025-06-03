@@ -24,7 +24,7 @@ import {
 const AdminDashboardPage = () => {
   const { user, loading: authLoading } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [adminCheckComplete, setAdminCheckComplete] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
@@ -45,32 +45,38 @@ const AdminDashboardPage = () => {
 
   useEffect(() => {
     const checkAdminStatus = async () => {
-      console.log('Checking admin status for user:', user?.id);
+      console.log('Starting admin check for user:', user?.id);
       
       if (!user) {
-        console.log('No user found, redirecting to auth');
+        console.log('No user found');
         setIsAdmin(false);
-        setIsLoading(false);
+        setAdminCheckComplete(true);
         return;
       }
 
       try {
+        console.log('Fetching profile for user:', user.id);
         const { data: profile, error } = await supabase
           .from('profiles')
           .select('role')
           .eq('id', user.id)
           .single();
         
-        console.log('Profile data:', profile);
-        console.log('Profile error:', error);
+        console.log('Profile fetch result:', { profile, error });
         
         if (error) {
           console.error('Error checking admin status:', error);
-          // If profile doesn't exist or error, user is not admin
           setIsAdmin(false);
+          if (error.code !== 'PGRST116') { // Not just "no rows returned"
+            toast({
+              title: "Error",
+              description: "Failed to check admin status",
+              variant: "destructive"
+            });
+          }
         } else {
           const userIsAdmin = profile?.role === 'admin';
-          console.log('User is admin:', userIsAdmin);
+          console.log('User admin status:', userIsAdmin);
           setIsAdmin(userIsAdmin);
           
           if (!userIsAdmin) {
@@ -82,26 +88,34 @@ const AdminDashboardPage = () => {
           }
         }
       } catch (error) {
-        console.error('Error checking admin status:', error);
+        console.error('Unexpected error checking admin status:', error);
         setIsAdmin(false);
+        toast({
+          title: "Error",
+          description: "An unexpected error occurred",
+          variant: "destructive"
+        });
       } finally {
-        setIsLoading(false);
+        setAdminCheckComplete(true);
       }
     };
 
-    // Only check admin status when we have a user and auth is not loading
+    // Reset admin check state when user changes
     if (!authLoading) {
+      setAdminCheckComplete(false);
       checkAdminStatus();
     }
   }, [user, authLoading, toast]);
 
   // Show loading while checking authentication or admin status
-  if (authLoading || isLoading) {
+  if (authLoading || !adminCheckComplete) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-600"></div>
-          <p className="mt-4 text-gray-600">Checking authentication...</p>
+          <p className="mt-4 text-gray-600">
+            {authLoading ? "Loading authentication..." : "Checking admin privileges..."}
+          </p>
         </div>
       </div>
     );
