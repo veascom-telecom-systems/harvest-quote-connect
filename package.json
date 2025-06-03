@@ -1,8 +1,16 @@
 {
-  "name": "vite_react_shadcn_ts",
+  "name": "harvest-quote-connect",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
+  "description": "Agricultural products marketplace with advanced quotation management system",
+  "keywords": ["agriculture", "marketplace", "react", "typescript", "supabase", "rfq"],
+  "author": "veascom-telecom-systems",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/veascom-telecom-systems/harvest-quote-connect.git"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",

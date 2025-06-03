@@ -7,6 +7,8 @@ export const useProducts = (includeInactive = false) => {
   return useQuery({
     queryKey: ['products', includeInactive],
     queryFn: async () => {
+      console.log('useProducts: Starting query, includeInactive:', includeInactive);
+
       let query = supabase
         .from('products')
         .select('*')
@@ -19,9 +21,18 @@ export const useProducts = (includeInactive = false) => {
 
       const { data, error } = await query;
 
-      if (error) throw error;
-      return data;
+      if (error) {
+        console.error('useProducts: Query error:', error);
+        throw error;
+      }
+
+      console.log('useProducts: Query successful, found', data?.length || 0, 'products');
+      return data || [];
     },
+    retry: 3,
+    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 5 * 60 * 1000, // 5 minutes
   });
 };
 

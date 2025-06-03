@@ -1,46 +1,15 @@
 
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useCart } from "@/hooks/useCart";
 
 const CartPage = () => {
-  const [cartItems, setCartItems] = useState([
-    {
-      id: 1,
-      name: "Organic Avocados",
-      category: "Fresh",
-      origin: "Spain",
-      price: 2.50,
-      quantity: 5,
-      unit: "kg",
-      image: "https://images.unsplash.com/photo-1618160702438-9b02ab6515c9?w=100&h=100&fit=crop"
-    },
-    {
-      id: 2,
-      name: "Fresh Strawberries",
-      category: "Fresh",
-      origin: "Netherlands",
-      price: 4.20,
-      quantity: 3,
-      unit: "kg",
-      image: "https://images.unsplash.com/photo-1465146344425-f00d5f5c8f07?w=100&h=100&fit=crop"
-    }
-  ]);
+  const { items: cartItems, updateQuantity, removeItem, getTotalPrice, clearCart } = useCart();
 
-  const updateQuantity = (id: number, newQuantity: number) => {
-    if (newQuantity <= 0) {
-      setCartItems(cartItems.filter(item => item.id !== id));
-    } else {
-      setCartItems(cartItems.map(item => 
-        item.id === id ? { ...item, quantity: newQuantity } : item
-      ));
-    }
-  };
-
-  const totalValue = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const totalValue = getTotalPrice();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
@@ -57,6 +26,17 @@ const CartPage = () => {
             <h1 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
               Shopping Cart
             </h1>
+            {cartItems.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={clearCart}
+                className="text-red-600 hover:text-red-700 border-red-600"
+              >
+                <Trash2 className="w-4 h-4 mr-1" />
+                Clear Cart
+              </Button>
+            )}
           </div>
         </div>
       </header>
@@ -83,14 +63,13 @@ const CartPage = () => {
                   <CardContent className="p-6">
                     <div className="flex items-center space-x-4">
                       <img
-                        src={item.image}
+                        src={item.image_url || 'https://images.unsplash.com/photo-1618160702438-9b02ab6515c9?w=100&h=100&fit=crop'}
                         alt={item.name}
                         className="w-20 h-20 object-cover rounded-lg"
                       />
-                      
+
                       <div className="flex-1">
                         <h3 className="font-semibold text-lg">{item.name}</h3>
-                        <p className="text-gray-600">{item.category} • Origin: {item.origin}</p>
                         <p className="text-green-600 font-semibold">€{item.price.toFixed(2)}/{item.unit}</p>
                       </div>
 
@@ -115,6 +94,14 @@ const CartPage = () => {
                           onClick={() => updateQuantity(item.id, item.quantity + 1)}
                         >
                           +
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => removeItem(item.id)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
 

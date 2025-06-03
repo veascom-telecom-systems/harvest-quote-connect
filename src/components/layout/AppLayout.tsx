@@ -1,7 +1,8 @@
 
-import { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useLocation, useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Sidebar,
   SidebarContent,
@@ -17,12 +18,12 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { 
-  Home, 
-  Package, 
-  ShoppingCart, 
-  FileText, 
-  User, 
+import {
+  Home,
+  Package,
+  ShoppingCart,
+  FileText,
+  User,
   Settings,
   LogOut,
   Shield
@@ -36,6 +37,8 @@ const AppSidebar = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminCheckComplete, setAdminCheckComplete] = useState(false);
 
   const menuItems = [
     {
@@ -73,12 +76,74 @@ const AppSidebar = () => {
     },
   ];
 
+  // Check if user is admin
+  useEffect(() => {
+    const checkAdminRole = async () => {
+      if (!user) {
+        setIsAdmin(false);
+        setAdminCheckComplete(true);
+        return;
+      }
+
+      try {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          if (error.code === 'PGRST116') {
+            // No profile exists, create admin profile for development
+            const { error: insertError } = await supabase
+              .from('profiles')
+              .insert({
+                id: user.id,
+                full_name: user.user_metadata?.full_name || user.email,
+                role: 'admin',
+                updated_at: new Date().toISOString(),
+              });
+
+            if (!insertError) {
+              setIsAdmin(true);
+            } else {
+              setIsAdmin(false);
+            }
+          } else {
+            setIsAdmin(false);
+          }
+        } else {
+          setIsAdmin(profile?.role === 'admin');
+        }
+      } catch (error) {
+        console.error('Error checking admin role:', error);
+        setIsAdmin(false);
+      } finally {
+        setAdminCheckComplete(true);
+      }
+    };
+
+    checkAdminRole();
+  }, [user]);
+
   const handleSignOut = async () => {
     try {
+      console.log('Attempting to sign out...');
       await signOut();
-      navigate("/");
+      console.log('Sign out successful, navigating to home...');
+
+      // Force navigation to home page
+      navigate("/", { replace: true });
+
+      // Force page reload to clear any cached state
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 100);
+
     } catch (error) {
       console.error("Error signing out:", error);
+      // Even if sign out fails, try to navigate away
+      navigate("/", { replace: true });
     }
   };
 
@@ -100,14 +165,12 @@ const AppSidebar = () => {
             <SidebarMenu>
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton 
-                    asChild
+                  <SidebarMenuButton
+                    onClick={() => navigate(item.url)}
                     isActive={location.pathname === item.url}
                   >
-                    <a href={item.url}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </a>
+                    <item.icon />
+                    <span>{item.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -115,21 +178,19 @@ const AppSidebar = () => {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {user && (
+        {user && adminCheckComplete && isAdmin && (
           <SidebarGroup>
             <SidebarGroupLabel>Admin</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {adminItems.map((item) => (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton 
-                      asChild
+                    <SidebarMenuButton
+                      onClick={() => navigate(item.url)}
                       isActive={location.pathname === item.url}
                     >
-                      <a href={item.url}>
-                        <item.icon />
-                        <span>{item.title}</span>
-                      </a>
+                      <item.icon />
+                      <span>{item.title}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
@@ -157,11 +218,9 @@ const AppSidebar = () => {
             </>
           ) : (
             <SidebarMenuItem>
-              <SidebarMenuButton asChild>
-                <a href="/auth">
-                  <User />
-                  <span>Sign In</span>
-                </a>
+              <SidebarMenuButton onClick={() => navigate("/auth")}>
+                <User />
+                <span>Sign In</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}
@@ -172,6 +231,20 @@ const AppSidebar = () => {
 };
 
 export const AppLayout = ({ children }: AppLayoutProps) => {
+  const { loading } = useAuth();
+
+  // Show loading screen while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-600"></div>
+          <p className="mt-4 text-gray-600">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار تسجيل الخروج - Crop Catch</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #f0fdf4, #ecfdf5, #f0fdfa);
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+        }
+        .success { border-color: #10b981; background: #f0fdf4; }
+        .error { border-color: #ef4444; background: #fef2f2; }
+        .warning { border-color: #f59e0b; background: #fffbeb; }
+        button {
+            background: #dc2626;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #b91c1c; }
+        .log {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 اختبار تسجيل الخروج - Crop Catch</h1>
+        
+        <div class="test-section">
+            <h3>📋 خطوات الاختبار:</h3>
+            <ol>
+                <li>تأكد من تسجيل الدخول في التطبيق</li>
+                <li>اضغط على زر "Sign Out" في الشريط الجانبي</li>
+                <li>أو اذهب لصفحة Profile واضغط على زر "Sign Out"</li>
+                <li>تحقق من النتائج أدناه</li>
+            </ol>
+        </div>
+
+        <div class="test-section">
+            <h3>🧪 اختبارات تسجيل الخروج:</h3>
+            
+            <button onclick="testSignOutFunction()">اختبار وظيفة تسجيل الخروج</button>
+            <button onclick="testLocalStorage()">فحص التخزين المحلي</button>
+            <button onclick="testSessionState()">فحص حالة الجلسة</button>
+            <button onclick="clearAllData()">مسح جميع البيانات</button>
+            
+            <div id="testResults" class="log"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>✅ ما يجب أن يحدث عند تسجيل الخروج:</h3>
+            <ul>
+                <li>✅ مسح بيانات المستخدم من الذاكرة</li>
+                <li>✅ مسح الجلسة من Supabase</li>
+                <li>✅ مسح التخزين المحلي</li>
+                <li>✅ إعادة التوجيه للصفحة الرئيسية</li>
+                <li>✅ إخفاء المحتوى المحمي</li>
+                <li>✅ إظهار زر "Sign In" بدلاً من "Sign Out"</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h3>🔧 حلول المشاكل الشائعة:</h3>
+            <ul>
+                <li><strong>لا يحدث شيء عند الضغط:</strong> تحقق من console للأخطاء</li>
+                <li><strong>لا يتم التوجيه:</strong> جرب إعادة تحميل الصفحة</li>
+                <li><strong>البيانات لا تُمسح:</strong> امسح cache المتصفح</li>
+                <li><strong>يظل مسجل الدخول:</strong> امسح localStorage يدوياً</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const results = document.getElementById('testResults');
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️';
+            results.textContent += `[${timestamp}] ${prefix} ${message}\n`;
+            results.scrollTop = results.scrollHeight;
+        }
+
+        function testSignOutFunction() {
+            log('بدء اختبار وظيفة تسجيل الخروج...');
+            
+            // Check if we're in the app context
+            if (window.location.hostname === 'localhost' && window.location.port === '8080') {
+                log('✅ التطبيق يعمل على localhost:8080');
+                log('🔍 تحقق من الشريط الجانبي للعثور على زر Sign Out');
+            } else {
+                log('⚠️ يجب تشغيل هذا الاختبار من داخل التطبيق', 'warning');
+            }
+        }
+
+        function testLocalStorage() {
+            log('فحص التخزين المحلي...');
+            
+            const keys = Object.keys(localStorage);
+            const supabaseKeys = keys.filter(key => key.includes('supabase'));
+            
+            if (supabaseKeys.length > 0) {
+                log(`🔍 وُجدت ${supabaseKeys.length} مفاتيح Supabase في localStorage:`);
+                supabaseKeys.forEach(key => log(`  - ${key}`));
+            } else {
+                log('✅ لا توجد بيانات Supabase في localStorage', 'success');
+            }
+        }
+
+        function testSessionState() {
+            log('فحص حالة الجلسة...');
+            
+            // Check session storage
+            const sessionKeys = Object.keys(sessionStorage);
+            if (sessionKeys.length > 0) {
+                log(`🔍 وُجدت ${sessionKeys.length} عناصر في sessionStorage`);
+            } else {
+                log('✅ sessionStorage فارغ', 'success');
+            }
+        }
+
+        function clearAllData() {
+            log('مسح جميع البيانات...');
+            
+            try {
+                localStorage.clear();
+                sessionStorage.clear();
+                log('✅ تم مسح جميع البيانات المحلية', 'success');
+                log('🔄 أعد تحميل الصفحة للتأكد من التأثير');
+            } catch (error) {
+                log(`❌ خطأ في مسح البيانات: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-run initial tests
+        window.onload = function() {
+            log('🚀 بدء اختبارات تسجيل الخروج...');
+            testLocalStorage();
+            testSessionState();
+        };
+    </script>
+</body>
+</html>

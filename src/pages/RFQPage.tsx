@@ -5,6 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useCart } from "@/hooks/useCart";
+import { useCreateRFQ } from "@/hooks/useRFQ";
 import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -22,23 +24,8 @@ const RFQPage = () => {
   });
 
   const { toast } = useToast();
-
-  const cartItems = [
-    {
-      id: 1,
-      name: "Organic Avocados",
-      quantity: 5,
-      unit: "kg",
-      estimatedPrice: 12.50
-    },
-    {
-      id: 2,
-      name: "Fresh Strawberries",
-      quantity: 3,
-      unit: "kg",
-      estimatedPrice: 12.60
-    }
-  ];
+  const { items: cartItems, clearCart } = useCart();
+  const createRFQ = useCreateRFQ();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData(prev => ({
@@ -47,17 +34,66 @@ const RFQPage = () => {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Placeholder for RFQ submission
-    toast({
-      title: "Quote Request Submitted!",
-      description: "We'll review your request and respond within 24 hours.",
-    });
+
+    if (cartItems.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please add items to your cart before submitting an RFQ.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      // Prepare RFQ data
+      const rfqData = {
+        notes: `Company: ${formData.companyName}
+Contact: ${formData.contactPerson}
+Email: ${formData.email}
+Phone: ${formData.phone}
+Delivery Address: ${formData.deliveryAddress}
+Country: ${formData.country}
+Preferred Delivery Date: ${formData.preferredDeliveryDate}
+Urgency: ${formData.urgency}
+Special Requirements: ${formData.specialRequirements}`
+      };
+
+      // Prepare items data
+      const items = cartItems.map(item => ({
+        product_id: item.id,
+        product_name: item.name,
+        quantity: item.quantity,
+        unit_price_at_request: item.price,
+        product_unit: item.unit
+      }));
+
+      // Submit RFQ
+      await createRFQ.mutateAsync({ rfqData, items });
+
+      // Clear cart after successful submission
+      clearCart();
+
+      // Reset form
+      setFormData({
+        companyName: "",
+        contactPerson: "",
+        email: "",
+        phone: "",
+        deliveryAddress: "",
+        country: "",
+        preferredDeliveryDate: "",
+        specialRequirements: "",
+        urgency: "standard"
+      });
+
+    } catch (error) {
+      console.error('RFQ submission error:', error);
+    }
   };
 
-  const totalEstimatedValue = cartItems.reduce((sum, item) => sum + item.estimatedPrice, 0);
+  const totalEstimatedValue = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
@@ -228,12 +264,13 @@ const RFQPage = () => {
                     </div>
                   </div>
 
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     className="w-full bg-green-600 hover:bg-green-700"
                     size="lg"
+                    disabled={createRFQ.isPending || cartItems.length === 0}
                   >
-                    Submit Quote Request
+                    {createRFQ.isPending ? "Submitting..." : "Submit Quote Request"}
                   </Button>
                 </form>
               </CardContent>
@@ -247,15 +284,19 @@ const RFQPage = () => {
                 <CardTitle>Order Summary</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {cartItems.map((item) => (
-                  <div key={item.id} className="flex justify-between items-center py-2 border-b border-gray-100">
-                    <div>
-                      <p className="font-medium">{item.name}</p>
-                      <p className="text-sm text-gray-600">{item.quantity} {item.unit}</p>
+                {cartItems.length === 0 ? (
+                  <p className="text-gray-600 text-center py-4">No items in cart</p>
+                ) : (
+                  cartItems.map((item) => (
+                    <div key={item.id} className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <div>
+                        <p className="font-medium">{item.name}</p>
+                        <p className="text-sm text-gray-600">{item.quantity} {item.unit}</p>
+                      </div>
+                      <p className="font-semibold">€{(item.price * item.quantity).toFixed(2)}</p>
                     </div>
-                    <p className="font-semibold">€{item.estimatedPrice.toFixed(2)}</p>
-                  </div>
-                ))}
+                  ))
+                )}
                 
                 <div className="border-t pt-4">
                   <div className="flex justify-between font-semibold text-lg">

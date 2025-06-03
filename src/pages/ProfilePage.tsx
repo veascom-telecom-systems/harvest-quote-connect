@@ -1,26 +1,92 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 const ProfilePage = () => {
   const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [profileData, setProfileData] = useState({
-    firstName: "John",
-    lastName: "Doe",
-    email: "john.doe@company.com",
-    company: "Fresh Foods Inc.",
-    phone: "+1 (555) 123-4567",
-    address: "123 Business Street",
-    city: "New York",
-    country: "United States",
-    postalCode: "10001"
+    firstName: "",
+    lastName: "",
+    email: "",
+    company: "",
+    phone: "",
+    address: "",
+    city: "",
+    country: "",
+    postalCode: ""
   });
 
   const { toast } = useToast();
+  const { user, signOut } = useAuth();
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (!user) return;
+
+      try {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
+        if (error && error.code !== 'PGRST116') {
+          console.error('Error loading profile:', error);
+          toast({
+            title: "Error",
+            description: "Failed to load profile data",
+            variant: "destructive"
+          });
+        } else if (profile) {
+          const fullName = profile.full_name || '';
+          const [firstName = '', lastName = ''] = fullName.split(' ');
+
+          setProfileData({
+            firstName,
+            lastName,
+            email: user.email || '',
+            company: user.user_metadata?.company || '',
+            phone: '',
+            address: '',
+            city: '',
+            country: '',
+            postalCode: ''
+          });
+        } else {
+          // No profile found, use user data
+          setProfileData({
+            firstName: user.user_metadata?.full_name?.split(' ')[0] || '',
+            lastName: user.user_metadata?.full_name?.split(' ')[1] || '',
+            email: user.email || '',
+            company: user.user_metadata?.company || '',
+            phone: '',
+            address: '',
+            city: '',
+            country: '',
+            postalCode: ''
+          });
+        }
+      } catch (error) {
+        console.error('Unexpected error loading profile:', error);
+        toast({
+          title: "Error",
+          description: "An unexpected error occurred",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProfile();
+  }, [user, toast]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setProfileData(prev => ({
@@ -29,13 +95,35 @@ const ProfilePage = () => {
     }));
   };
 
-  const handleSave = () => {
-    // Placeholder for profile update logic
-    setIsEditing(false);
-    toast({
-      title: "Profile Updated",
-      description: "Your profile information has been saved successfully.",
-    });
+  const handleSave = async () => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          full_name: `${profileData.firstName} ${profileData.lastName}`.trim(),
+          updated_at: new Date().toISOString(),
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      setIsEditing(false);
+      toast({
+        title: "Profile Updated",
+        description: "Your profile information has been saved successfully.",
+      });
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update profile. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const orderHistory = [
@@ -61,6 +149,18 @@ const ProfilePage = () => {
       items: 5
     }
   ];
+
+  // Show loading while fetching profile data
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-600"></div>
+          <p className="mt-4 text-gray-600">Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
@@ -279,6 +379,30 @@ const ProfilePage = () => {
                 
                 <Button variant="outline" className="w-full border-green-600 text-green-600 hover:bg-green-50">
                   View All Orders
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Account Settings */}
+            <Card className="bg-white/80 backdrop-blur-sm border-green-100">
+              <CardHeader>
+                <CardTitle>Account Settings</CardTitle>
+                <CardDescription>Manage your account preferences</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Button
+                  variant="outline"
+                  className="w-full border-red-600 text-red-600 hover:bg-red-50"
+                  onClick={async () => {
+                    try {
+                      await signOut();
+                      window.location.href = "/";
+                    } catch (error) {
+                      console.error('Sign out error:', error);
+                    }
+                  }}
+                >
+                  Sign Out
                 </Button>
               </CardContent>
             </Card>

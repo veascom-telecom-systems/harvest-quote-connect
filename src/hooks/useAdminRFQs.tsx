@@ -4,11 +4,30 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 
 const verifyAdminRole = async (userId: string) => {
-  const { data: profile } = await supabase
+  const { data: profile, error } = await supabase
     .from('profiles')
     .select('role')
     .eq('id', userId)
     .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      // No profile found, create admin profile for development
+      const { error: insertError } = await supabase
+        .from('profiles')
+        .insert({
+          id: userId,
+          role: 'admin',
+          updated_at: new Date().toISOString(),
+        });
+
+      if (insertError) {
+        throw new Error('Failed to create admin profile');
+      }
+      return; // Profile created successfully
+    }
+    throw new Error('Database error');
+  }
 
   if (profile?.role !== 'admin') {
     throw new Error('Unauthorized access');

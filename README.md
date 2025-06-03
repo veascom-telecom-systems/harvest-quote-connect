@@ -1,73 +1,225 @@
-# Welcome to your Lovable project
+# 🌾 Harvest Quote Connect - Agricultural Products Marketplace
 
-## Project info
+A comprehensive web application for agricultural product trading with advanced quotation management system, built for modern farming businesses and agricultural suppliers.
 
-**URL**: https://lovable.dev/projects/c32072da-0700-4fd6-8e9f-598d6a5c42fc
+## ✨ Key Features
 
-## How can I edit this code?
+### 🛍️ **For Customers & Buyers:**
+- **Product Catalog:** Browse extensive agricultural products with detailed specifications
+- **Advanced Search:** Filter by category, origin, price range, and availability
+- **Shopping Cart:** Add multiple products with quantity management
+- **RFQ System:** Request custom quotes for bulk orders
+- **User Dashboard:** Manage profile, orders, and quotation history
+- **Secure Authentication:** Email verification and secure login
 
-There are several ways of editing your application.
+### 🏢 **For Administrators & Suppliers:**
+- **Admin Dashboard:** Comprehensive management interface with analytics
+- **Product Management:** Full CRUD operations for product catalog
+- **RFQ Management:** Review, quote, and respond to customer requests
+- **User Management:** Role-based access control and user administration
+- **Analytics & Reporting:** Real-time insights and business metrics
+- **Security Monitoring:** Advanced security features and audit logs
 
-**Use Lovable**
+## 🛠️ Technology Stack
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/c32072da-0700-4fd6-8e9f-598d6a5c42fc) and start prompting.
+### **Frontend:**
+- **React 18** with TypeScript for type-safe development
+- **Tailwind CSS** for modern, responsive styling
+- **shadcn/ui** for consistent, accessible UI components
+- **React Query (TanStack Query)** for efficient data management
+- **React Router DOM** for client-side routing
+- **Vite** for fast development and optimized builds
 
-Changes made via Lovable will be committed automatically to this repo.
+### **Backend & Database:**
+- **Supabase** - PostgreSQL database with real-time capabilities
+- **Supabase Auth** - Secure authentication and user management
+- **Row Level Security (RLS)** - Database-level security policies
+- **Real-time subscriptions** for live data updates
 
-**Use your preferred IDE**
+## 🚀 Quick Start
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Prerequisites
+- Node.js 18 or higher
+- npm or yarn package manager
+- Supabase account (for database)
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Installation
 
-Follow these steps:
+1. **Clone the repository:**
+```bash
+git clone https://github.com/veascom-telecom-systems/harvest-quote-connect.git
+cd harvest-quote-connect
+```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+2. **Install dependencies:**
+```bash
+npm install
+```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+3. **Environment setup:**
+```bash
+cp .env.example .env.local
+```
 
-# Step 3: Install the necessary dependencies.
-npm i
+4. **Configure environment variables in `.env.local`:**
+```env
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+5. **Start development server:**
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+6. **Open your browser:**
+Navigate to `http://localhost:8080`
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## 📁 Project Structure
 
-**Use GitHub Codespaces**
+```
+src/
+├── components/
+│   ├── admin/           # Admin dashboard components
+│   ├── auth/            # Authentication components
+│   ├── debug/           # Development debugging tools
+│   ├── layout/          # Layout and navigation components
+│   └── ui/              # Reusable UI components (shadcn/ui)
+├── hooks/               # Custom React hooks
+│   ├── useAuth.tsx      # Authentication hook
+│   ├── useProducts.tsx  # Product management hooks
+│   ├── useCart.tsx      # Shopping cart hook
+│   └── useRFQ.tsx       # RFQ management hooks
+├── integrations/
+│   └── supabase/        # Supabase client and configuration
+├── lib/                 # Utility functions and helpers
+├── pages/               # Page components
+│   ├── HomePage.tsx     # Landing page
+│   ├── ProductsPage.tsx # Product catalog
+│   ├── CartPage.tsx     # Shopping cart
+│   ├── RFQPage.tsx      # Request for quotation
+│   ├── ProfilePage.tsx  # User profile
+│   └── AdminDashboardPage.tsx # Admin interface
+└── types/               # TypeScript type definitions
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## 🗄️ Database Schema
 
-## What technologies are used for this project?
+### Core Tables:
+- **`products`** - Product catalog with pricing and specifications
+- **`profiles`** - User profiles with role-based permissions
+- **`rfqs`** - Request for quotation records
+- **`rfq_items`** - Individual items within RFQ requests
 
-This project is built with:
+### Security Features:
+- Row Level Security (RLS) policies
+- Role-based access control (Admin/User)
+- Secure API endpoints
+- Input validation and sanitization
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## 🔧 Available Scripts
 
-## How can I deploy this project?
+```bash
+npm run dev          # Start development server
+npm run build        # Build for production
+npm run preview      # Preview production build
+npm run lint         # Run ESLint code analysis
+```
 
-Simply open [Lovable](https://lovable.dev/projects/c32072da-0700-4fd6-8e9f-598d6a5c42fc) and click on Share -> Publish.
+## 🎯 Core Functionality
 
-## Can I connect a custom domain to my Lovable project?
+### **Product Management:**
+- ✅ Complete CRUD operations for products
+- ✅ Image upload and management
+- ✅ Stock tracking and availability
+- ✅ Category and origin filtering
+- ✅ Price management with currency support
 
-Yes, you can!
+### **RFQ (Request for Quotation) System:**
+- ✅ Customer request submission
+- ✅ Admin quote generation
+- ✅ Status tracking (pending, quoted, accepted, rejected)
+- ✅ Email notifications
+- ✅ Bulk order management
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+### **User Authentication:**
+- ✅ Secure registration and login
+- ✅ Email verification
+- ✅ Password reset functionality
+- ✅ Role-based access control
+- ✅ Session management
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+### **Admin Dashboard:**
+- ✅ Real-time analytics and metrics
+- ✅ User management interface
+- ✅ Product inventory management
+- ✅ RFQ processing and quoting
+- ✅ Security monitoring and logs
+
+## 📱 Responsive Design
+
+Fully optimized for all devices:
+- 📱 **Mobile:** 375px and up
+- 📱 **Tablet:** 768px and up
+- 💻 **Desktop:** 1024px and up
+- 🖥️ **Large screens:** 1440px and up
+
+## 🚀 Deployment
+
+### **Vercel (Recommended):**
+1. Connect GitHub repository to Vercel
+2. Configure environment variables
+3. Automatic deployments on push to main branch
+
+### **Netlify:**
+1. Connect repository to Netlify
+2. Build command: `npm run build`
+3. Publish directory: `dist`
+4. Configure environment variables
+
+### **Manual Deployment:**
+```bash
+npm run build
+# Deploy the 'dist' folder to your hosting provider
+```
+
+## 🔒 Security Features
+
+- **Multi-layer Security:** Route, UI, Database, and API level protection
+- **Row Level Security:** Database policies for data isolation
+- **Input Validation:** Comprehensive form and API validation
+- **Authentication:** Secure JWT-based authentication
+- **Authorization:** Role-based access control
+- **HTTPS:** Encrypted data transmission
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Commit changes: `git commit -m 'Add amazing feature'`
+4. Push to branch: `git push origin feature/amazing-feature`
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 📞 Support & Contact
+
+- **Email:** veascom.telecom.systems@gmail.com
+- **GitHub Issues:** [Create an issue](https://github.com/veascom-telecom-systems/harvest-quote-connect/issues)
+- **Documentation:** [Wiki](https://github.com/veascom-telecom-systems/harvest-quote-connect/wiki)
+
+## 🙏 Acknowledgments
+
+- **React Team** for the amazing framework
+- **Supabase** for the backend infrastructure
+- **Tailwind CSS** for the utility-first CSS framework
+- **shadcn/ui** for beautiful, accessible components
+- **Vercel** for seamless deployment platform
+
+---
+
+**Built with ❤️ for the agricultural community**
+
+*Empowering farmers, suppliers, and agricultural businesses with modern technology solutions.*

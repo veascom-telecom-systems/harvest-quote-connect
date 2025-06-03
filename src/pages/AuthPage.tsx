@@ -19,7 +19,19 @@ const AuthPage = () => {
     company: ""
   });
   
-  const { user, signUp, signIn } = useAuth();
+  const { user, loading, signUp, signIn } = useAuth();
+
+  // Show loading while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-600"></div>
+          <p className="mt-4 text-gray-600">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Redirect if already authenticated
   if (user) {

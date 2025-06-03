@@ -20,6 +20,8 @@
     "noUnusedParameters": false,
     "noImplicitAny": false,
     "noFallthroughCasesInSwitch": false,
+    "noImplicitReturns": false,
+    "noUncheckedIndexedAccess": false,
 
     "baseUrl": ".",
     "paths": {

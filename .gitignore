@@ -23,3 +23,23 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# Test files
+test-*.js
+create-test-user.js
+quick-site-health-check.js
+
+# Reports and documentation files
+*-report.md
+*-audit-report.md
+*-guide.md
+*-analysis-report.md
+comprehensive-site-test.md
+github-deployment-guide.md
+
+# Supabase local files
+supabase/.branches
+supabase/.temp
+
+# Build artifacts
+*.tsbuildinfo

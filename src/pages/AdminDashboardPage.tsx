@@ -1,18 +1,19 @@
-import { useState, useEffect } from "react";
-import { Navigate } from "react-router-dom";
+import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdminProducts, useCreateProduct, useUpdateProduct, useDeleteProduct } from "@/hooks/useProducts";
 import { useAdminRFQs, useUpdateRFQStatus } from "@/hooks/useAdminRFQs";
 import { useAdminOrders, useUpdateOrder } from "@/hooks/useOrders";
 import { useAdminStats } from "@/hooks/useAdminStats";
+import { useSecurityAlerts, useActivityLogs, useSecurityStats } from "@/hooks/useSecurity";
 import { ProductForm } from "@/components/admin/ProductForm";
 import { RFQDialog } from "@/components/admin/RFQDialog";
 import { OverviewTab } from "@/components/admin/OverviewTab";
 import { ProductsTab } from "@/components/admin/ProductsTab";
 import { RFQsTab } from "@/components/admin/RFQsTab";
 import { OrdersTab } from "@/components/admin/OrdersTab";
+import { UsersTab } from "@/components/admin/UsersTab";
+import { SettingsTab } from "@/components/admin/SettingsTab";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -22,9 +23,7 @@ import {
 } from "lucide-react";
 
 const AdminDashboardPage = () => {
-  const { user, loading: authLoading } = useAuth();
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [adminCheckComplete, setAdminCheckComplete] = useState(false);
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
@@ -36,6 +35,11 @@ const AdminDashboardPage = () => {
   const { data: products = [], isLoading: productsLoading } = useAdminProducts();
   const { data: rfqs = [], isLoading: rfqsLoading } = useAdminRFQs();
   const { data: orders = [], isLoading: ordersLoading } = useAdminOrders();
+
+  // Security data
+  const { data: securityAlerts = [], isLoading: securityAlertsLoading } = useSecurityAlerts();
+  const { data: activityLogs = [], isLoading: activityLogsLoading } = useActivityLogs();
+  const { data: securityStats, isLoading: securityStatsLoading } = useSecurityStats();
   
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
@@ -43,93 +47,7 @@ const AdminDashboardPage = () => {
   const updateRFQStatus = useUpdateRFQStatus();
   const updateOrder = useUpdateOrder();
 
-  useEffect(() => {
-    const checkAdminStatus = async () => {
-      console.log('Starting admin check for user:', user?.id);
-      
-      if (!user) {
-        console.log('No user found');
-        setIsAdmin(false);
-        setAdminCheckComplete(true);
-        return;
-      }
-
-      try {
-        console.log('Fetching profile for user:', user.id);
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single();
-        
-        console.log('Profile fetch result:', { profile, error });
-        
-        if (error) {
-          console.error('Error checking admin status:', error);
-          setIsAdmin(false);
-          if (error.code !== 'PGRST116') { // Not just "no rows returned"
-            toast({
-              title: "Error",
-              description: "Failed to check admin status",
-              variant: "destructive"
-            });
-          }
-        } else {
-          const userIsAdmin = profile?.role === 'admin';
-          console.log('User admin status:', userIsAdmin);
-          setIsAdmin(userIsAdmin);
-          
-          if (!userIsAdmin) {
-            toast({
-              title: "Access Denied",
-              description: "You don't have admin privileges",
-              variant: "destructive"
-            });
-          }
-        }
-      } catch (error) {
-        console.error('Unexpected error checking admin status:', error);
-        setIsAdmin(false);
-        toast({
-          title: "Error",
-          description: "An unexpected error occurred",
-          variant: "destructive"
-        });
-      } finally {
-        setAdminCheckComplete(true);
-      }
-    };
-
-    // Reset admin check state when user changes
-    if (!authLoading) {
-      setAdminCheckComplete(false);
-      checkAdminStatus();
-    }
-  }, [user, authLoading, toast]);
-
-  // Show loading while checking authentication or admin status
-  if (authLoading || !adminCheckComplete) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-600"></div>
-          <p className="mt-4 text-gray-600">
-            {authLoading ? "Loading authentication..." : "Checking admin privileges..."}
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // Redirect if not authenticated
-  if (!user) {
-    return <Navigate to="/auth" replace />;
-  }
-
-  // Redirect if not admin
-  if (!isAdmin) {
-    return <Navigate to="/" replace />;
-  }
+  // AdminGuard handles all authentication and authorization checks
 
   const handleProductSubmit = async (productData: any) => {
     try {
@@ -277,16 +195,7 @@ const AdminDashboardPage = () => {
           </TabsContent>
 
           <TabsContent value="users">
-            <Card className="bg-white/80 backdrop-blur-sm border-green-100">
-              <CardHeader>
-                <CardTitle>User Management</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <p>User management interface coming soon...</p>
-                </div>
-              </CardContent>
-            </Card>
+            <UsersTab />
           </TabsContent>
 
           <TabsContent value="products">
@@ -324,6 +233,61 @@ const AdminDashboardPage = () => {
 
           <TabsContent value="security">
             <div className="grid gap-6">
+              {/* Security Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Security Score</CardTitle>
+                    <Shield className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-green-600">
+                      {securityStatsLoading ? '...' : `${securityStats?.securityScore || 85}%`}
+                    </div>
+                    <p className="text-xs text-muted-foreground">System security rating</p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Admin Users</CardTitle>
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {securityStatsLoading ? '...' : securityStats?.adminUsers || 0}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Active administrators</p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Recent Orders</CardTitle>
+                    <Activity className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {securityStatsLoading ? '...' : securityStats?.recentOrders || 0}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Last 24 hours</p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Pending RFQs</CardTitle>
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {securityStatsLoading ? '...' : securityStats?.pendingRFQs || 0}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Awaiting review</p>
+                  </CardContent>
+                </Card>
+              </div>
+
               <Card className="bg-white/80 backdrop-blur-sm border-green-100">
                 <CardHeader>
                   <CardTitle className="flex items-center">
@@ -332,24 +296,42 @@ const AdminDashboardPage = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {[
-                      { level: "high", message: "Multiple failed login attempts detected", timestamp: new Date().toISOString() },
-                      { level: "medium", message: "Unusual access pattern detected", timestamp: new Date().toISOString() }
-                    ].map((alert, index) => (
-                      <div
-                        key={index}
-                        className={`p-4 rounded-lg ${
-                          alert.level === 'high' ? 'bg-red-50 text-red-700' : 'bg-yellow-50 text-yellow-700'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold">{alert.message}</span>
-                          <span className="text-sm">{new Date(alert.timestamp).toLocaleString()}</span>
+                  {securityAlertsLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {securityAlerts.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                          <Shield className="w-12 h-12 mx-auto mb-4 text-green-500" />
+                          <p>No security alerts at this time</p>
+                          <p className="text-sm">System is operating normally</p>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ) : (
+                        securityAlerts.map((alert) => (
+                          <div
+                            key={alert.id}
+                            className={`p-4 rounded-lg ${
+                              alert.level === 'high'
+                                ? 'bg-red-50 text-red-700 border border-red-200'
+                                : alert.level === 'medium'
+                                ? 'bg-yellow-50 text-yellow-700 border border-yellow-200'
+                                : 'bg-blue-50 text-blue-700 border border-blue-200'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <span className="font-semibold">{alert.message}</span>
+                                <div className="text-sm opacity-75 mt-1">Type: {alert.type}</div>
+                              </div>
+                              <span className="text-sm">{new Date(alert.timestamp).toLocaleString()}</span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -361,26 +343,45 @@ const AdminDashboardPage = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {[
-                      { timestamp: new Date().toISOString(), action: "User login", user: "admin@example.com", ip: "192.168.1.1" },
-                      { timestamp: new Date().toISOString(), action: "Product updated", user: "admin@example.com", ip: "192.168.1.1" },
-                      { timestamp: new Date().toISOString(), action: "Order processed", user: "admin@example.com", ip: "192.168.1.1" }
-                    ].map((activity, index) => (
-                      <div key={index} className="flex items-center justify-between border-b pb-2">
-                        <div>
-                          <p className="font-medium">{activity.action}</p>
-                          <p className="text-sm text-gray-500">{activity.user}</p>
+                  {activityLogsLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {activityLogs.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                          <Activity className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                          <p>No recent activity</p>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm text-gray-500">{activity.ip}</p>
-                          <p className="text-sm text-gray-500">
-                            {new Date(activity.timestamp).toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ) : (
+                        activityLogs.map((activity) => (
+                          <div key={activity.id} className="flex items-center justify-between border-b pb-2">
+                            <div>
+                              <p className="font-medium">{activity.action}</p>
+                              <p className="text-sm text-gray-500">{activity.user}</p>
+                              <p className="text-xs text-gray-400">{activity.details}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm text-gray-500">{activity.ip}</p>
+                              <p className="text-sm text-gray-500">
+                                {new Date(activity.timestamp).toLocaleString()}
+                              </p>
+                              <span className={`inline-block px-2 py-1 rounded-full text-xs ${
+                                activity.type === 'order'
+                                  ? 'bg-green-100 text-green-800'
+                                  : activity.type === 'rfq'
+                                  ? 'bg-blue-100 text-blue-800'
+                                  : 'bg-gray-100 text-gray-800'
+                              }`}>
+                                {activity.type}
+                              </span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -455,16 +456,7 @@ const AdminDashboardPage = () => {
           </TabsContent>
 
           <TabsContent value="settings">
-            <Card className="bg-white/80 backdrop-blur-sm border-green-100">
-              <CardHeader>
-                <CardTitle>System Settings</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <p>System settings interface coming soon...</p>
-                </div>
-              </CardContent>
-            </Card>
+            <SettingsTab />
           </TabsContent>
         </Tabs>
       </div>

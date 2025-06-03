@@ -7,14 +7,20 @@ import { Label } from "@/components/ui/label";
 import { ShoppingCart } from "lucide-react";
 import { useProducts } from "@/hooks/useProducts";
 import { useCart } from "@/hooks/useCart";
+import { ProductsDebugInfo } from "@/components/debug/ProductsDebugInfo";
 
 const ProductsPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedOrigin, setSelectedOrigin] = useState("All");
   
-  const { data: products = [], isLoading, error } = useProducts();
+  const { data: products = [], isLoading, error, isError, isFetching } = useProducts();
   const { addItem } = useCart();
+
+  // Debug logging
+  console.log('ProductsPage: isLoading:', isLoading, 'isError:', isError, 'isFetching:', isFetching);
+  console.log('ProductsPage: products count:', products?.length || 0);
+  console.log('ProductsPage: error:', error);
 
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -54,22 +60,34 @@ const ProductsPage = () => {
     });
   };
 
-  if (isLoading) {
+  if (isLoading && !products.length) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-600"></div>
           <p className="mt-4 text-gray-600">Loading products...</p>
+          <p className="mt-2 text-sm text-gray-500">
+            {isFetching ? 'Fetching data...' : 'Initializing...'}
+          </p>
         </div>
       </div>
     );
   }
 
-  if (error) {
+  if (isError && error) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-600">Error loading products. Please try again.</p>
+        <div className="text-center max-w-md">
+          <p className="text-red-600 text-lg font-semibold mb-2">Error loading products</p>
+          <p className="text-gray-600 mb-4">
+            {error?.message || 'An unexpected error occurred. Please try again.'}
+          </p>
+          <Button
+            onClick={() => window.location.reload()}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            Retry
+          </Button>
         </div>
       </div>
     );
@@ -181,12 +199,29 @@ const ProductsPage = () => {
           ))}
         </div>
 
-        {filteredProducts.length === 0 && (
+        {filteredProducts.length === 0 && products.length > 0 && (
           <div className="text-center py-12">
             <p className="text-gray-600 text-lg">No products found matching your criteria.</p>
+            <p className="text-gray-500 mt-2">Try adjusting your search or filters.</p>
+          </div>
+        )}
+
+        {products.length === 0 && !isLoading && !isError && (
+          <div className="text-center py-12">
+            <p className="text-gray-600 text-lg">No products available at the moment.</p>
+            <p className="text-gray-500 mt-2">Please check back later for new products.</p>
+            <Button
+              onClick={() => window.location.reload()}
+              className="mt-4 bg-green-600 hover:bg-green-700"
+            >
+              Refresh
+            </Button>
           </div>
         )}
       </div>
+
+      {/* Debug Component - only in development */}
+      {process.env.NODE_ENV === 'development' && <ProductsDebugInfo />}
     </div>
   );
 };
