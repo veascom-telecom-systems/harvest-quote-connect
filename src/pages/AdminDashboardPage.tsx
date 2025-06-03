@@ -25,7 +25,6 @@ const AdminDashboardPage = () => {
   const { user, loading: authLoading } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [checkingAuth, setCheckingAuth] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
@@ -34,7 +33,7 @@ const AdminDashboardPage = () => {
 
   const { toast } = useToast();
   const { data: stats, isLoading: statsLoading } = useAdminStats();
-  const { data: products = [], isLoading: productsLoading } = useAdminProducts(); // Use admin products hook
+  const { data: products = [], isLoading: productsLoading } = useAdminProducts();
   const { data: rfqs = [], isLoading: rfqsLoading } = useAdminRFQs();
   const { data: orders = [], isLoading: ordersLoading } = useAdminOrders();
   
@@ -49,9 +48,9 @@ const AdminDashboardPage = () => {
       console.log('Checking admin status for user:', user?.id);
       
       if (!user) {
+        console.log('No user found, redirecting to auth');
         setIsAdmin(false);
         setIsLoading(false);
-        setCheckingAuth(false);
         return;
       }
 
@@ -67,11 +66,7 @@ const AdminDashboardPage = () => {
         
         if (error) {
           console.error('Error checking admin status:', error);
-          toast({
-            title: "Error",
-            description: "Failed to check admin status",
-            variant: "destructive"
-          });
+          // If profile doesn't exist or error, user is not admin
           setIsAdmin(false);
         } else {
           const userIsAdmin = profile?.role === 'admin';
@@ -91,17 +86,17 @@ const AdminDashboardPage = () => {
         setIsAdmin(false);
       } finally {
         setIsLoading(false);
-        setCheckingAuth(false);
       }
     };
 
+    // Only check admin status when we have a user and auth is not loading
     if (!authLoading) {
       checkAdminStatus();
     }
   }, [user, authLoading, toast]);
 
-  // Show loading while checking authentication
-  if (authLoading || checkingAuth) {
+  // Show loading while checking authentication or admin status
+  if (authLoading || isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 flex items-center justify-center">
         <div className="text-center">
@@ -118,7 +113,7 @@ const AdminDashboardPage = () => {
   }
 
   // Redirect if not admin
-  if (!isLoading && !isAdmin) {
+  if (!isAdmin) {
     return <Navigate to="/" replace />;
   }
 
@@ -274,7 +269,6 @@ const AdminDashboardPage = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {/* User management content */}
                   <p>User management interface coming soon...</p>
                 </div>
               </CardContent>
@@ -453,7 +447,6 @@ const AdminDashboardPage = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {/* Settings content */}
                   <p>System settings interface coming soon...</p>
                 </div>
               </CardContent>
